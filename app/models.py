@@ -1,5 +1,14 @@
+import numpy as np
 import torch
-from transformers import Pipeline, pipeline
+from schemas import VoicePresets
+from transformers import (
+    AutoModel,
+    AutoProcessor,
+    BarkModel,
+    BarkProcessor,
+    Pipeline,
+    pipeline,
+)
 
 prompt = "How to set up a FastAPI project?"
 system_prompt = """
@@ -7,6 +16,7 @@ Your name is FastAPI bot and you are a helpful
 chatbot responsible for teaching FastAPI to your users.
 Always respond in markdown.
 """
+
 
 def load_text_model():
     pipe = pipeline(
@@ -35,3 +45,21 @@ def generate_text(pipe: Pipeline, prompt: str, temperature: float = 0.7) -> str:
     )
     output = predictions[0]["generated_text"].split("</s>\n<|assistant|>\n")[-1]
     return output
+
+
+def load_audio_model() -> tuple[BarkProcessor, BarkModel]:
+    processor = AutoProcessor.from_pretrained("suno/bark-small")
+    model = AutoModel.from_pretrained("suno/bark-small")
+    return processor, model
+
+
+def generate_audio(
+    processor: BarkProcessor,
+    model: BarkModel,
+    prompt: str,
+    preset: VoicePresets,
+) -> tuple[np.array, int]:
+    inputs = processor(text=[prompt], return_tensors="pt", voice_preset=preset)
+    output = model.generate(**inputs, do_sample=True).cpu().numpy().squeeze()
+    sample_rate = model.generation_config.sample_rate
+    return output, sample_rate
