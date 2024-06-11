@@ -4,3 +4,5 @@ transformers
 torch
 streamlit
 soundfile
+diffusers
+accelerate

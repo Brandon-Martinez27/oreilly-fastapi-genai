@@ -1,5 +1,7 @@
 import numpy as np
 import torch
+from diffusers import DiffusionPipeline, StableDiffusionInpaintPipelineLegacy
+from PIL import Image
 from schemas import VoicePresets
 from transformers import (
     AutoModel,
@@ -10,7 +12,7 @@ from transformers import (
     pipeline,
 )
 
-prompt = "How to set up a FastAPI project?"
+# prompt = "How to set up a FastAPI project?"
 system_prompt = """
 Your name is FastAPI bot and you are a helpful
 chatbot responsible for teaching FastAPI to your users.
@@ -63,3 +65,17 @@ def generate_audio(
     output = model.generate(**inputs, do_sample=True).cpu().numpy().squeeze()
     sample_rate = model.generation_config.sample_rate
     return output, sample_rate
+
+
+def load_image_model() -> StableDiffusionInpaintPipelineLegacy:
+    pipe = DiffusionPipeline.from_pretrained(
+        "segmind/tiny-sd", torch_dtype=torch.float32
+    )
+    return pipe
+
+
+def generate_image(
+    pipe: StableDiffusionInpaintPipelineLegacy, prompt: str
+) -> Image.Image:
+    output = pipe(prompt, num_inference_steps=10).images[0]
+    return output
