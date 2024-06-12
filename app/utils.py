@@ -1,9 +1,13 @@
+import tempfile
 from io import BytesIO
 from typing import Literal
 
 import av
 import numpy as np
+import open3d as o3d
 import soundfile
+import torch
+from diffusers.pipelines.shap_e.renderer import MeshDecoderOutput
 from PIL import Image
 
 
@@ -36,4 +40,25 @@ def export_to_video_buffer(images: list[Image.Image]) -> BytesIO:
         output.mux(packet)
     packet = stream.encode(None)  # type: ignore
     output.mux(packet)
+    return buffer
+
+
+def mesh_to_obj_buffer(mesh: MeshDecoderOutput) -> BytesIO:
+    mesh_o3d = o3d.geometry.TriangleMesh()
+    mesh_o3d.vertices = o3d.utility.Vector3dVector(mesh.verts.cpu().detach().numpy())
+    mesh_o3d.triangles = o3d.utility.Vector3iVector(mesh.faces.cpu().detach().numpy())
+
+    if len(mesh.vertex_channels) == 3:  # You have color channels
+        vert_color = torch.stack(
+            [mesh.vertex_channels[channel] for channel in "RGB"], dim=1
+        )
+        mesh_o3d.vertex_colors = o3d.utility.Vector3dVector(
+            vert_color.cpu().detach().numpy()
+        )
+
+    with tempfile.NamedTemporaryFile(delete=True, suffix=".obj") as tmp:
+        o3d.io.write_triangle_mesh(tmp.name, mesh_o3d, write_ascii=True)
+        with open(tmp.name, "rb") as f:
+            buffer = BytesIO(f.read())
+
     return buffer

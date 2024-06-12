@@ -1,20 +1,28 @@
-import uvicorn
 from io import BytesIO
-from PIL import Image
-from fastapi import FastAPI, Query, Response, status, File, UploadFile
+
+import uvicorn
+from fastapi import FastAPI, File, Query, Response, UploadFile, status
 from fastapi.responses import RedirectResponse, StreamingResponse
 from models import (
+    generate_3d_geometry,
     generate_audio,
     generate_image,
     generate_text,
+    generate_video,
+    load_3d_model,
     load_audio_model,
     load_image_model,
     load_text_model,
-    load_video_model, generate_video
+    load_video_model,
 )
+from PIL import Image
 from schemas import VoicePresets
-from utils import audio_array_to_buffer, img_to_bytes, export_to_video_buffer
-
+from utils import (
+    audio_array_to_buffer,
+    export_to_video_buffer,
+    img_to_bytes,
+    mesh_to_obj_buffer,
+)
 
 app = FastAPI()
 
@@ -79,9 +87,22 @@ async def serve_image_to_video_model_controller(
     )
     model = load_video_model()
     frames = generate_video(model, image, num_frames)
-    return StreamingResponse(
-        export_to_video_buffer(frames), media_type="video/mp4"
-    )
+    return StreamingResponse(export_to_video_buffer(frames), media_type="video/mp4")
+
+
+@app.get(
+    "/generate/3d",
+    responses={status.HTTP_200_OK: {"content": {"model/obj": {}}}},
+    response_class=StreamingResponse,
+)
+def serve_text_to_3d_model_controller(
+    prompt: str = Query(...), num_inference_steps: int = Query(default=25)
+):
+    model = load_3d_model()
+    mesh = generate_3d_geometry(model, prompt, num_inference_steps)
+    response = StreamingResponse(mesh_to_obj_buffer(mesh), media_type="model/obj")
+    response.headers["Content-Disposition"] = f"attachment; filename={prompt}.obj"
+    return response
 
 
 if __name__ == "__main__":

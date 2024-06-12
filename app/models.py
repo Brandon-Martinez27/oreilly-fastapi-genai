@@ -1,6 +1,11 @@
 import numpy as np
 import torch
-from diffusers import DiffusionPipeline, StableVideoDiffusionPipeline, StableDiffusionInpaintPipelineLegacy
+from diffusers import (
+    DiffusionPipeline,
+    ShapEPipeline,
+    StableDiffusionInpaintPipelineLegacy,
+    StableVideoDiffusionPipeline,
+)
 from PIL import Image
 from schemas import VoicePresets
 from transformers import (
@@ -99,5 +104,24 @@ def generate_video(
 ) -> list[Image.Image]:
     image = image.resize((1024, 576))
     generator = torch.manual_seed(42)
-    frames = pipe(image, decode_chunk_size=8, generator=generator, num_frames=num_frames).frames[0]
+    frames = pipe(
+        image, decode_chunk_size=8, generator=generator, num_frames=num_frames
+    ).frames[0]
     return frames
+
+
+def load_3d_model() -> ShapEPipeline:
+    pipe = ShapEPipeline.from_pretrained("openai/shap-e")
+    return pipe
+
+
+def generate_3d_geometry(
+    pipe: ShapEPipeline, prompt: str, size: int, num_inference_steps: int
+):
+    images = pipe(
+        prompt,
+        guidance_scale=15.0,
+        num_inference_steps=num_inference_steps,
+        output_type="mesh",
+    ).images[0]
+    return images
