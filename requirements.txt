@@ -6,3 +6,5 @@ streamlit
 soundfile
 diffusers
 accelerate
+av
+python-multipart
